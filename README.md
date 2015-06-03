@@ -1,2 +1,5 @@
 # ramcache
-ramcache implements an in-memory key/value cache with expirations based on access and insertion times. 
+
+go get [-u] stathat.com/c/ramcache
+
+http://godoc.org/stathat.com/c/ramcache
