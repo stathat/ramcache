@@ -52,7 +52,6 @@ func (rc *Ramcache) Get(key string) (interface{}, error) {
 		return nil, ErrNotFound
 	}
 	if rc.MaxAge > 0 && time.Since(i.createdAt) > rc.MaxAge {
-		fmt.Printf("deleting item %s.  Created at: %s (%s ago).\n", key, i.createdAt, time.Since(i.createdAt))
 		heap.Remove(&rc.tqueue, i.index)
 		delete(rc.cache, key)
 		return nil, ErrNotFound
@@ -72,7 +71,6 @@ func (rc *Ramcache) GetNoAccess(key string) (interface{}, error) {
 		return nil, ErrNotFound
 	}
 	if rc.MaxAge > 0 && time.Since(i.createdAt) > rc.MaxAge {
-		fmt.Printf("deleting item %s.  Created at: %s (%s ago).\n", key, i.createdAt, time.Since(i.createdAt))
 		heap.Remove(&rc.tqueue, i.index)
 		delete(rc.cache, key)
 		return nil, ErrNotFound
@@ -172,7 +170,6 @@ func (rc *Ramcache) clean(now time.Time) {
 		}
 		top := heap.Pop(&rc.tqueue).(*item)
 		if now.Sub(top.accessedAt) > rc.TTL {
-			fmt.Printf("deleting item %s.  Last access at: %s (%s ago).\n", top.key, top.accessedAt, now.Sub(top.accessedAt))
 			delete(rc.cache, top.key)
 		} else {
 			heap.Push(&rc.tqueue, top)
