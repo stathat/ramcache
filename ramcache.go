@@ -29,6 +29,7 @@ type Ramcache struct {
 	TTL    time.Duration
 	MaxAge time.Duration
 	frozen bool
+	done   chan bool
 	sync.RWMutex
 }
 
@@ -38,7 +39,8 @@ type Ramcache struct {
 func New() *Ramcache {
 	tq := make(timeQueue, 0)
 	c := make(map[string]*item)
-	r := &Ramcache{cache: c, tqueue: tq, TTL: 5 * time.Minute}
+	d := make(chan bool)
+	r := &Ramcache{cache: c, tqueue: tq, TTL: 5 * time.Minute, done: d}
 	go r.cleanup()
 	return r
 }
@@ -151,10 +153,20 @@ func (rc *Ramcache) Keys() []string {
 	return result
 }
 
+// Shutdown cleanly stops any background work, allowing Ramcache
+// to be garbage collected.
+func (rc *Ramcache) Shutdown() {
+	close(rc.done)
+}
+
 func (rc *Ramcache) cleanup() {
 	for {
-		time.Sleep(10 * time.Second)
-		rc.clean(time.Now())
+		select {
+		case <-time.After(10 * time.Second):
+			rc.clean(time.Now())
+		case <-rc.done:
+			return
+		}
 	}
 }
 
