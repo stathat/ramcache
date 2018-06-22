@@ -263,6 +263,17 @@ func TestBool(t *testing.T) {
 	}
 }
 
+func TestShutdown(t *testing.T) {
+	r := New()
+	r.Set("asdfqwer", true)
+	r.Set("zxcvzxcv", false)
+	r.Shutdown()
+	r.Shutdown()
+	r.Shutdown()
+	r.Shutdown()
+	r.Shutdown()
+}
+
 func BenchmarkSet(b *testing.B) {
 	r := New()
 	for i := 0; i < b.N; i++ {

@@ -24,13 +24,14 @@ var ErrNotFound = errors.New("ramcache: key not found in cache")
 // also delete them once they have been in the cache for MaxAge
 // duration.
 type Ramcache struct {
-	cache  map[string]*item
-	tqueue timeQueue
-	TTL    time.Duration
-	MaxAge time.Duration
-	frozen bool
-	done   chan bool
 	sync.RWMutex
+	cache      map[string]*item
+	tqueue     timeQueue
+	TTL        time.Duration
+	MaxAge     time.Duration
+	frozen     bool
+	shutdown   bool
+	shutdownCh chan struct{}
 }
 
 // New creates a Ramcache with a TTL of 5 minutes.  You can change
@@ -39,9 +40,9 @@ type Ramcache struct {
 func New() *Ramcache {
 	tq := make(timeQueue, 0)
 	c := make(map[string]*item)
-	d := make(chan bool)
-	r := &Ramcache{cache: c, tqueue: tq, TTL: 5 * time.Minute, done: d}
-	go r.cleanup()
+	d := make(chan struct{}, 1)
+	r := &Ramcache{cache: c, tqueue: tq, TTL: 5 * time.Minute, shutdownCh: d}
+	go r.cleanupLoop()
 	return r
 }
 
@@ -156,16 +157,29 @@ func (rc *Ramcache) Keys() []string {
 // Shutdown cleanly stops any background work, allowing Ramcache
 // to be garbage collected.
 func (rc *Ramcache) Shutdown() {
-	close(rc.done)
+	rc.Lock()
+	defer rc.Unlock()
+	rc.shutdown = true
+	select {
+	case rc.shutdownCh <- struct{}{}:
+	default:
+	}
 }
 
-func (rc *Ramcache) cleanup() {
+func (rc *Ramcache) cleanupLoop() {
 	for {
 		select {
 		case <-time.After(10 * time.Second):
-			rc.clean(time.Now())
-		case <-rc.done:
+		case <-rc.shutdownCh:
+		}
+		var wasShutdown bool
+		rc.Lock()
+		wasShutdown = rc.shutdown
+		rc.Unlock()
+		if wasShutdown {
 			return
+		} else {
+			rc.clean(time.Now())
 		}
 	}
 }
